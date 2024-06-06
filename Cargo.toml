@@ -1,0 +1,17 @@
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { version = "1.0.86", features = ["backtrace"] }
+axum = { version = "0.7.5", features = ["macros", "multipart"] }
+candle-core = "0.5.1"
+candle-examples = "0.5.1"
+candle-nn = "0.5.1"
+candle-transformers = "0.5.1"
+futures-util = "0.3.30"
+image = "0.25.1"
+imageproc = "0.25.0"
+serde = { version = "1.0.203", features = ["derive"] }
+tokio = { version = "1.38.0", features = ["full"] }
