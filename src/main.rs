@@ -1,7 +1,11 @@
+use axum::http::header;
+use axum::response::{Html, IntoResponse};
+use axum::routing::get;
 use image::Rgba;
 use std::fs;
 use std::{net::SocketAddr, path::PathBuf};
 use tokio::net::TcpListener;
+use tower_http::cors::{Cors, CorsLayer};
 
 use axum::{
     extract::{DefaultBodyLimit, Multipart},
@@ -12,10 +16,12 @@ use axum::{
 use candle_core::{DType, Device};
 use candle_nn::VarBuilder;
 use candle_transformers::models::segment_anything::sam::{self, Sam};
+use tower_http::services::ServeDir;
 
 const MODEL_PATH: &str = "model/mobile_sam-tiny-vitt.safetensors";
 const IMAGE_TEMP_PATH: &str = "image/temp.png";
 const OUTPUT_PATH: &str = "image/output.png";
+const MODEL_PATH: &str = "sample.obj";
 const THRESHOLD: f32 = 0.;
 const PORT: u16 = 3000;
 
@@ -79,27 +85,34 @@ async fn segment(Json(data): Json<Vec<(f64, f64, bool)>>) -> Vec<u8> {
             }
         }
     }
-    for (x, y, b) in points {
-        let x = (x * img.width() as f64) as i32;
-        let y = (y * img.height() as f64) as i32;
-        let color = if *b {
-            image::Rgba([255, 0, 0, 200])
-        } else {
-            image::Rgba([0, 255, 0, 200])
-        };
-        imageproc::drawing::draw_filled_circle_mut(&mut img, (x, y), 3, color);
-    }
+    // for (x, y, b) in points {
+    //     let x = (x * img.width() as f64) as i32;
+    //     let y = (y * img.height() as f64) as i32;
+    //     let color = if *b {
+    //         image::Rgba([255, 0, 0, 200])
+    //     } else {
+    //         image::Rgba([0, 255, 0, 200])
+    //     };
+    //     imageproc::drawing::draw_filled_circle_mut(&mut img, (x, y), 3, color);
+    // }
     img.save(OUTPUT_PATH).unwrap();
 
     fs::read(OUTPUT_PATH).unwrap()
 }
 
+async fn generate() -> impl IntoResponse {
+    fs::read(MODEL_PATH).unwrap()
+}
+
 #[tokio::main]
 async fn main() {
     let app = Router::new()
+        .nest_service("/", ServeDir::new("../Frontend"))
         .route("/upload", post(upload))
         .route("/segment", post(segment))
-        .layer(DefaultBodyLimit::max(10240000));
+        .route("/generate", get(generate))
+        .layer(CorsLayer::permissive())
+        .layer(DefaultBodyLimit::max(1024 * 1024 * 1024));
     let listener = TcpListener::bind(SocketAddr::new([0, 0, 0, 0].into(), PORT))
         .await
         .unwrap();
